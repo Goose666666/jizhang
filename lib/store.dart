@@ -104,6 +104,16 @@ class TxStore extends ChangeNotifier {
     await _save();
   }
 
+  /// 按 id 更新一笔(编辑保存用)。
+  Future<void> update(Tx tx) async {
+    final i = _txs.indexWhere((t) => t.id == tx.id);
+    if (i < 0) return;
+    _txs[i] = tx;
+    _sort();
+    notifyListeners();
+    await _save();
+  }
+
   /// 合并自动记账(AutoAccounting)推送到 inbox.jsonl 的账单。
   /// 返回本次导入的笔数。
   Future<int> importInbox() async {

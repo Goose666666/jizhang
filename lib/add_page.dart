@@ -7,22 +7,46 @@ const _brand = Color(0xFF2C5F4F);
 const _expenseColor = Color(0xFFB23A3A);
 const _incomeColor = Color(0xFF3A7A5A);
 
-/// 记一笔页面,返回构造好的 [Tx](未入库)。
+/// 记一笔 / 编辑页面。[edit] 非空则为编辑模式(预填并保持原 id)。
+/// 返回构造好的 [Tx]。
 class AddPage extends StatefulWidget {
-  const AddPage({super.key});
+  const AddPage({super.key, this.edit});
+  final Tx? edit;
 
   @override
   State<AddPage> createState() => _AddPageState();
 }
 
 class _AddPageState extends State<AddPage> {
-  bool isExpense = true;
-  Scene scene = Scene.school;
-  Account account = Account.wechat;
-  String category = schoolCategories.first.name;
-  DateTime date = DateTime.now();
+  late bool isExpense;
+  late Scene scene;
+  late Account account;
+  late String category;
+  late DateTime date;
   final amountCtrl = TextEditingController();
   final noteCtrl = TextEditingController();
+
+  bool get _isEdit => widget.edit != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.edit;
+    isExpense = e?.isExpense ?? true;
+    scene = e?.scene == '出去玩' ? Scene.travel : Scene.school;
+    account = e?.account ?? Account.wechat;
+    category = e?.category ?? schoolCategories.first.name;
+    date = e?.date ?? DateTime.now();
+    if (e != null) {
+      amountCtrl.text = _fmtAmount(e.amount);
+      noteCtrl.text = e.note;
+    }
+  }
+
+  static String _fmtAmount(double v) {
+    final s = v.toStringAsFixed(2);
+    return s.endsWith('.00') ? s.substring(0, s.length - 3) : s;
+  }
 
   @override
   void dispose() {
@@ -48,17 +72,21 @@ class _AddPageState extends State<AddPage> {
       return;
     }
     final now = DateTime.now();
+    final e = widget.edit;
+    // 编辑时保留原 id 与原时刻(仅日期可改);新增用当前时刻
+    final keepTime = e?.date ?? now;
     Navigator.pop(
       context,
       Tx(
-        id: now.microsecondsSinceEpoch.toString(),
+        id: e?.id ?? now.microsecondsSinceEpoch.toString(),
         amount: double.parse(amount.toStringAsFixed(2)),
         isExpense: isExpense,
         account: account,
         category: category,
         scene: isExpense ? scene.label : '',
         note: noteCtrl.text.trim(),
-        date: DateTime(date.year, date.month, date.day, now.hour, now.minute),
+        date: DateTime(
+            date.year, date.month, date.day, keepTime.hour, keepTime.minute),
       ),
     );
   }
@@ -84,8 +112,8 @@ class _AddPageState extends State<AddPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('记一笔',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(_isEdit ? '编辑' : '记一笔',
+            style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: ListView(
@@ -126,7 +154,7 @@ class _AddPageState extends State<AddPage> {
                   Expanded(
                     child: TextField(
                       controller: amountCtrl,
-                      autofocus: true,
+                      autofocus: !_isEdit,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
                       inputFormatters: [

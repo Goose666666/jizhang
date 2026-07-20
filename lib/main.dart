@@ -8,6 +8,7 @@ import 'add_page.dart';
 import 'importer.dart';
 import 'models.dart';
 import 'onboarding_page.dart';
+import 'stats_page.dart';
 import 'store.dart';
 import 'update_checker.dart';
 
@@ -236,6 +237,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  /// 点击一笔进入编辑,保存后按 id 更新。
+  Future<void> _editTx(Tx tx) async {
+    final updated = await Navigator.push<Tx>(context,
+        MaterialPageRoute(builder: (_) => AddPage(edit: tx)));
+    if (updated != null) await widget.store.update(updated);
+  }
+
   void _shiftMonth(int delta) =>
       setState(() => month = DateTime(month.year, month.month + delta));
 
@@ -350,6 +358,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.pie_chart_outline_rounded),
+            tooltip: '统计',
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => StatsPage(store: widget.store))),
+          ),
+          IconButton(
             icon: const Icon(Icons.calendar_month_outlined),
             tooltip: '日历',
             onPressed: () => Navigator.push(
@@ -462,6 +478,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       return _DayGroup(
                         dayKey: day,
                         txs: list,
+                        onTap: _editTx,
                         onDelete: (tx) async {
                           await widget.store.remove(tx.id);
                           if (!context.mounted) return;
@@ -739,11 +756,13 @@ class _DayGroup extends StatelessWidget {
     required this.dayKey,
     required this.txs,
     required this.onDelete,
+    this.onTap,
   });
 
   final String dayKey;
   final List<Tx> txs;
   final void Function(Tx) onDelete;
+  final void Function(Tx)? onTap;
 
   static const _weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
@@ -806,7 +825,7 @@ class _DayGroup extends StatelessWidget {
                       indent: 64,
                       endIndent: 16,
                       color: cs.outlineVariant.withValues(alpha: .4)),
-                _TxTile(tx: txs[i], onDelete: onDelete),
+                _TxTile(tx: txs[i], onDelete: onDelete, onTap: onTap),
               ],
             ],
           ),
@@ -817,9 +836,10 @@ class _DayGroup extends StatelessWidget {
 }
 
 class _TxTile extends StatelessWidget {
-  const _TxTile({required this.tx, required this.onDelete});
+  const _TxTile({required this.tx, required this.onDelete, this.onTap});
   final Tx tx;
   final void Function(Tx) onDelete;
+  final void Function(Tx)? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -832,10 +852,10 @@ class _TxTile extends StatelessWidget {
 
     return Slidable(
       key: ValueKey(tx.id),
-      // 左滑露出删除按钮,再点击才删除(删除进回收站可恢复)
+      // 左滑露出红色删除按钮,再点击才删除(删除进回收站可恢复)
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        extentRatio: 0.24,
+        extentRatio: 0.28,
         children: [
           SlidableAction(
             onPressed: (_) => onDelete(tx),
@@ -847,9 +867,12 @@ class _TxTile extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        child: Row(
+      child: InkWell(
+        onTap: onTap == null ? null : () => onTap!(tx),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(
           children: [
             Container(
               width: 40,
@@ -890,6 +913,7 @@ class _TxTile extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -1014,6 +1038,14 @@ class _CalendarPageState extends State<CalendarPage> {
                           color: cs.outlineVariant.withValues(alpha: .4)),
                     _TxTile(
                       tx: dayTxs[i],
+                      onTap: (tx) async {
+                        final updated = await Navigator.push<Tx>(context,
+                            MaterialPageRoute(
+                                builder: (_) => AddPage(edit: tx)));
+                        if (updated != null) {
+                          await widget.store.update(updated);
+                        }
+                      },
                       onDelete: (tx) async {
                         await widget.store.remove(tx.id);
                         if (!context.mounted) return;
