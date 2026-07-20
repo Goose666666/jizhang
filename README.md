@@ -1,5 +1,10 @@
 # 记账 · jizhang
 
+[![下载 APK](https://img.shields.io/badge/⬇_下载-Android_APK-2C5F4F?style=for-the-badge)](https://github.com/Goose666666/jizhang/releases/latest)
+[![License](https://img.shields.io/badge/License-MIT-3A7A5A?style=for-the-badge)](LICENSE)
+
+> 📥 **直接下载安装**:到 [Releases 页](https://github.com/Goose666666/jizhang/releases/latest)下载最新 `jizhang-*.apk` 即可(Android)。首次打开有引导帮你完成配置。
+
 一个简约大气的跨端记账 App(Android / Windows),用 Flutter 写成。除了手动记账,它的特色是**自动记账**:
 支付完停在成功页,**翻转手机**(或下拉点通知),App 用**无障碍服务截屏 + 多模态大模型识别**,把这笔账自动记进你自己的账本 —— 全程本地,数据只存在你的设备上。
 
