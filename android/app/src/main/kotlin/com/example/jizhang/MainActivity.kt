@@ -19,17 +19,41 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
-                if (call.method == "pick") {
-                    pendingResult = result
-                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "*/*"
+                when (call.method) {
+                    "pick" -> {
+                        pendingResult = result
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                        }
+                        startActivityForResult(intent, reqCode)
                     }
-                    startActivityForResult(intent, reqCode)
-                } else {
-                    result.notImplemented()
+                    "isAccessibilityOn" -> result.success(isAccessibilityOn())
+                    "openAccessibility" -> {
+                        startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        result.success(null)
+                    }
+                    "openAppDetails" -> {
+                        startActivity(
+                            Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.parse("package:$packageName")
+                            )
+                        )
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
                 }
             }
+    }
+
+    /** 检查本应用的无障碍服务是否已开启。 */
+    private fun isAccessibilityOn(): Boolean {
+        val enabled = android.provider.Settings.Secure.getString(
+            contentResolver,
+            android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+        return enabled.contains("$packageName/$packageName.ScanService")
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

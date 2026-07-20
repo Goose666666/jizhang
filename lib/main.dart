@@ -6,6 +6,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'add_page.dart';
 import 'importer.dart';
 import 'models.dart';
+import 'onboarding_page.dart';
 import 'store.dart';
 
 // 水墨墨绿配色
@@ -70,8 +71,47 @@ class JizhangApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: HomePage(store: store),
+      home: RootGate(store: store),
     );
+  }
+}
+
+/// 根据加载状态与是否已引导,决定显示 加载 / 引导 / 主界面。
+class RootGate extends StatefulWidget {
+  const RootGate({super.key, required this.store});
+  final TxStore store;
+
+  @override
+  State<RootGate> createState() => _RootGateState();
+}
+
+class _RootGateState extends State<RootGate> {
+  @override
+  void initState() {
+    super.initState();
+    widget.store.addListener(_onStore);
+  }
+
+  @override
+  void dispose() {
+    widget.store.removeListener(_onStore);
+    super.dispose();
+  }
+
+  void _onStore() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.store.loaded) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (!widget.store.onboarded) {
+      return OnboardingPage(
+        store: widget.store,
+        onDone: () => setState(() {}),
+      );
+    }
+    return HomePage(store: widget.store);
   }
 }
 
@@ -271,6 +311,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         builder: (_) => TrashPage(store: widget.store)));
               } else if (v == 'settings') {
                 _openSettings();
+              } else if (v == 'guide') {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => OnboardingPage(
+                            store: widget.store,
+                            onDone: () => Navigator.pop(context))));
               }
             },
             itemBuilder: (_) => [
@@ -281,6 +328,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       size: 20, color: Theme.of(context).colorScheme.onSurface),
                   const SizedBox(width: 12),
                   Text('回收站${widget.store.trash.isEmpty ? '' : ' (${widget.store.trash.length})'}'),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'guide',
+                child: Row(children: [
+                  Icon(Icons.help_outline_rounded, size: 20),
+                  SizedBox(width: 12),
+                  Text('使用引导'),
                 ]),
               ),
               const PopupMenuItem(

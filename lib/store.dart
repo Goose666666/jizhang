@@ -41,6 +41,7 @@ class TxStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('load failed: $e');
     }
+    onboarded = (await _readConfig())['onboarded'] == true;
     loaded = true;
     notifyListeners();
     await importInbox();
@@ -54,25 +55,40 @@ class TxStore extends ChangeNotifier {
     await tf.writeAsString(jsonEncode(_trash.map((t) => t.toJson()).toList()));
   }
 
+  bool onboarded = false; // 是否已完成首次引导
+
   File? get _configFile => _file == null
       ? null
       : File('${_file!.parent.path}${Platform.pathSeparator}config.json');
 
-  Future<String> readApiKey() async {
+  Future<Map<String, dynamic>> _readConfig() async {
     final f = _configFile;
-    if (f == null || !await f.exists()) return '';
+    if (f == null || !await f.exists()) return {};
     try {
-      return (jsonDecode(await f.readAsString()) as Map)['glmKey'] as String? ??
-          '';
+      return Map<String, dynamic>.from(
+          jsonDecode(await f.readAsString()) as Map);
     } catch (_) {
-      return '';
+      return {};
     }
   }
 
-  Future<void> saveApiKey(String key) async {
+  /// 合并写入配置(不覆盖其它字段,原生侧读的 glmKey 不受影响)。
+  Future<void> _patchConfig(Map<String, dynamic> patch) async {
     final f = _configFile;
     if (f == null) return;
-    await f.writeAsString(jsonEncode({'glmKey': key.trim()}));
+    final c = await _readConfig()..addAll(patch);
+    await f.writeAsString(jsonEncode(c));
+  }
+
+  Future<String> readApiKey() async =>
+      (await _readConfig())['glmKey'] as String? ?? '';
+
+  Future<void> saveApiKey(String key) => _patchConfig({'glmKey': key.trim()});
+
+  Future<void> setOnboarded() async {
+    onboarded = true;
+    notifyListeners();
+    await _patchConfig({'onboarded': true});
   }
 
   Future<void> _save() async {
