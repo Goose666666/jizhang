@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'add_page.dart';
 import 'importer.dart';
 import 'models.dart';
 import 'onboarding_page.dart';
 import 'store.dart';
+import 'update_checker.dart';
 
 // 水墨墨绿配色
 const _brand = Color(0xFF2C5F4F); // 深墨绿(主色)
@@ -134,6 +136,65 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     month = DateTime(now.year, now.month);
     widget.store.addListener(_onStore);
     WidgetsBinding.instance.addObserver(this);
+    // 启动后静默检查更新
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () => _checkUpdate(silent: true));
+    });
+  }
+
+  Future<void> _checkUpdate({required bool silent}) async {
+    final info = await UpdateChecker.fetch();
+    if (!mounted) return;
+    if (info == null) {
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('检查更新失败,请稍后再试'),
+            behavior: SnackBarBehavior.floating));
+      }
+      return;
+    }
+    if (!info.isNewer) {
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('已是最新版本 v$kAppVersion'),
+            behavior: SnackBarBehavior.floating));
+      }
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('发现新版本 v${info.version}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('当前 v$kAppVersion',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 10),
+            if (info.notes.isNotEmpty)
+              Text(info.notes, style: const TextStyle(fontSize: 14, height: 1.5)),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('以后再说')),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (info.downloadUrl.isNotEmpty) {
+                launchUrl(Uri.parse(info.downloadUrl),
+                    mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text('前往下载'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -318,6 +379,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         builder: (_) => OnboardingPage(
                             store: widget.store,
                             onDone: () => Navigator.pop(context))));
+              } else if (v == 'update') {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('正在检查更新…'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 1)));
+                _checkUpdate(silent: false);
               }
             },
             itemBuilder: (_) => [
@@ -336,6 +403,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   Icon(Icons.help_outline_rounded, size: 20),
                   SizedBox(width: 12),
                   Text('使用引导'),
+                ]),
+              ),
+              const PopupMenuItem(
+                value: 'update',
+                child: Row(children: [
+                  Icon(Icons.system_update_rounded, size: 20),
+                  SizedBox(width: 12),
+                  Text('检查更新'),
                 ]),
               ),
               const PopupMenuItem(
