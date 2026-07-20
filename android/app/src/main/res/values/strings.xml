@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="scan_service_desc">开启后,记账将在你完成微信/支付宝支付时自动读取账单信息并记账。仅在支付成功页面工作,不上传任何数据。</string>
+</resources>
